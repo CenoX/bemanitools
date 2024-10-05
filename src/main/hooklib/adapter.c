@@ -40,16 +40,28 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
     PMIB_IPFORWARDTABLE ip_fwd_table;
     DWORD table_size;
     DWORD best_adapter;
-    PIP_ADAPTER_INFO info;
-    PIP_ADAPTER_INFO wan_info;
-    PIP_ADAPTER_INFO specific_adapter_info;
+    PIP_ADAPTER_INFO info, wan_info, specific_adapter_info, dhcp_info;
 
     ret = real_GetAdaptersInfo(adapter_info, out_buf_len);
 
     if (ret != 0) {
         return ret;
     }
-
+    dhcp_info = adapter_info;
+    while (dhcp_info) {
+        log_info(
+            "%s: show adapter: %s, %s, %s, %s, %d, "
+            "%s, %s",
+            __FUNCTION__,
+            dhcp_info->AdapterName,
+            dhcp_info->Description,
+            dhcp_info->IpAddressList.IpAddress.String,
+            dhcp_info->IpAddressList.IpMask.String,
+            dhcp_info->DhcpEnabled,
+            dhcp_info->DhcpServer.IpAddress.String,
+            dhcp_info->GatewayList.IpAddress.String);
+        dhcp_info = dhcp_info->Next;
+    }
     wan_info = adapter_info;
     if (use_wan_address_override) {
         while (wan_info) {
@@ -75,12 +87,16 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
                     override_wan_address.String,
                     sizeof(IP_ADDRESS_STRING));
                 log_info(
-                    "%s: update [wan override] adapter: %s, %s, %s, %s",
+                    "%s: update [wan override] adapter: %s, %s, %s, %s, %d, "
+                    "%s, %s",
                     __FUNCTION__,
                     wan_info->AdapterName,
                     wan_info->Description,
                     wan_info->IpAddressList.IpAddress.String,
-                    wan_info->IpAddressList.IpMask.String);
+                    wan_info->IpAddressList.IpMask.String,
+                    wan_info->DhcpEnabled,
+                    wan_info->DhcpServer.IpAddress.String,
+                    wan_info->GatewayList.IpAddress.String);
             }
             wan_info = wan_info->Next;
         }
@@ -132,9 +148,10 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
     specific_adapter_info = adapter_info;
     if (use_specific_adapter_uuid) {
         while (specific_adapter_info) {
-            if (strstr(
+            if (strncmp(
                     specific_adapter_info->AdapterName,
-                    specific_adapter_uuid)) {
+                    specific_adapter_uuid,
+                    strlen(specific_adapter_uuid))) {
                 log_info(
                     "%s: using [specific] adapter: %s, %s, %s, %s",
                     __FUNCTION__,
