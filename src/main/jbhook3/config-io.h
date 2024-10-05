@@ -13,7 +13,7 @@ struct jbhook3_config_io {
     bool show_cursor;
     bool use_external_ip;
     bool use_override_ip;
-    char use_specific_adapter_uuid[260];
+    char use_specific_adapter_uuid[37];
     char override_ip[16];
 };
 
