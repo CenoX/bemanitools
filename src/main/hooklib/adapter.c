@@ -182,6 +182,7 @@ void adapter_hook_init(void)
 void adapter_hook_use_specific_adapter(const char *adapter_uuid)
 {
     use_specific_adapter_uuid = false;
+    log_info("Start specific adapter override");
 
     if (adapter_uuid == NULL || *adapter_uuid == '\0') {
         // empty, do nothing
@@ -189,7 +190,7 @@ void adapter_hook_use_specific_adapter(const char *adapter_uuid)
     }
 
     memset(specific_adapter_uuid, 0, sizeof(specific_adapter_uuid));
-    memcpy(specific_adapter_uuid, adapter_uuid, sizeof(adapter_uuid));
+    memcpy(specific_adapter_uuid, adapter_uuid, strlen(adapter_uuid) + 1);
 
     use_specific_adapter_uuid = true;
 }
@@ -199,9 +200,11 @@ void adapter_hook_override(const char *adapter_address)
     // starts off false anyways due to static
     // but in case it gets called multiple times, set it anyways
     use_address_override = false;
+    log_info("Start adapter override");
 
     if (adapter_address == NULL || *adapter_address == '\0') {
         // empty, do nothing
+        log_warning("%s: empty adapter address", __FUNCTION__);
         return;
     }
 
@@ -213,6 +216,7 @@ void adapter_hook_override(const char *adapter_address)
 
     memset(override_address.String, 0, sizeof(IP_ADDRESS_STRING));
     memcpy(override_address.String, adapter_address, sizeof(IP_ADDRESS_STRING));
+    log_info("%s: override address set to %s", __FUNCTION__, adapter_address);
 
     use_address_override = true;
 }
