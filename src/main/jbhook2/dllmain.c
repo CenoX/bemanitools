@@ -8,6 +8,8 @@
 #include "bemanitools/eamio.h"
 #include "bemanitools/jbio.h"
 
+#include "cconfig/cconfig-hook.h"
+
 #include "hook/iohook.h"
 #include "hook/table.h"
 
@@ -18,7 +20,7 @@
 
 #include "imports/avs.h"
 
-#include "jbhook2/options.h"
+#include "jbhook2/config-io.h"
 
 #include "jbhook-util/acio.h"
 #include "jbhook-util/eamuse.h"
@@ -39,7 +41,36 @@
 #include "util/log.h"
 #include "util/thread.h"
 
-static struct options options;
+#define JBHOOK2_INFO_HEADER     \
+    "jbhook2 for saucer and up" \
+    ", build " __DATE__ " " __TIME__ ", gitrev " STRINGIFY(GITREV) "\n"
+#define JBHOOK2_CMD_USAGE                 \
+    "Usage: launcher.exe -K jbhook2.dll --config jbhook-02.conf " \
+    "<jubeat.dll> [options...]"
+
+static struct jbhook2_config_io options;
+
+static bool load_configs()
+{
+    struct cconfig *config;
+    config = cconfig_init();
+
+    jbhook2_config_io_init(config);
+
+    if (!cconfig_hook_config_init(
+            config,
+            JBHOOK2_INFO_HEADER "\n" JBHOOK2_CMD_USAGE,
+            CCONFIG_CMD_USAGE_OUT_DBG)) {
+        cconfig_finit(config);
+        return false;
+    }
+
+    jbhook2_config_io_get(&options, config);
+
+    cconfig_finit(config);
+
+    return true;
+}
 
 static bool my_dll_entry_init(char *sidcode, struct property_node *param)
 {
@@ -52,6 +83,12 @@ static bool my_dll_entry_init(char *sidcode, struct property_node *param)
     log_info("--- Begin jbhook dll_entry_init ---");
 
     log_assert(sidcode != NULL);
+
+    // reload configs again so they get logged through avs as well
+    // (so we get a copy of them in the -Y logfile)
+    if (!load_configs()) {
+        exit(EXIT_FAILURE);
+    }
 
     if (options.vertical) {
         jbhook_util_gfx_install_vertical_hooks();
@@ -167,8 +204,6 @@ static bool my_dll_entry_main(void)
         jbhook_util_p3io_fini();
     }
 
-    options_fini(&options);
-
     return result;
 }
 
@@ -220,14 +255,19 @@ static HWND CDECL my_mwindow_create(
 
 BOOL WINAPI DllMain(HMODULE mod, DWORD reason, void *ctx)
 {
+
+    // reload configs again so they get logged through avs as well
+    // (so we get a copy of them in the -Y logfile)
+    if (!load_configs()) {
+        exit(EXIT_FAILURE);
+    }
+
     if (reason != DLL_PROCESS_ATTACH) {
         return TRUE;
     }
 
     log_to_external(
         log_body_misc, log_body_info, log_body_warning, log_body_fatal);
-
-    options_init_from_cmdline(&options);
 
     hook_table_apply(
         NULL, "mwindow.dll", init_hook_syms, lengthof(init_hook_syms));
@@ -239,6 +279,14 @@ BOOL WINAPI DllMain(HMODULE mod, DWORD reason, void *ctx)
     }
 
     jbhook_util_eamuse_hook_init();
+
+    // TODO: MAYBE WE SHOULD ADD EXTERNEL & OVERRIDE IP FROM HERE?
+    adapter_hook_override(options.override_ip);
+    adapter_hook_use_specific_adapter(
+        options.use_specific_adapter_uuid);
+    if (options.use_external_ip) {
+        adapter_hook_wan_override();
+    }
 
     return TRUE;
 }

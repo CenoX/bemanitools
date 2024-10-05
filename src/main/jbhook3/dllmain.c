@@ -40,7 +40,7 @@
     "jbhook3 for saucer and up" \
     ", build " __DATE__ " " __TIME__ ", gitrev " STRINGIFY(GITREV) "\n"
 #define JBHOOK3_CMD_USAGE                 \
-    "Usage: launcher.exe -K jbhook3.dll " \
+    "Usage: launcher.exe -K jbhook3.dll --config jbhook-03.conf " \
     "<jubeat.dll> [options...]"
 
 static struct jbhook3_config_io jbhook3_config_io;
@@ -180,6 +180,13 @@ BOOL WINAPI DllMain(HMODULE mod, DWORD reason, void *ctx)
     if (reason != DLL_PROCESS_ATTACH) {
         return TRUE;
     }
+
+    // reload configs again so they get logged through avs as well
+    // (so we get a copy of them in the -Y logfile)
+    if (!load_configs()) {
+        exit(EXIT_FAILURE);
+    }
+
 
     log_to_external(
         log_body_misc, log_body_info, log_body_warning, log_body_fatal);

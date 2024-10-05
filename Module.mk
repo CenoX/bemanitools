@@ -529,6 +529,7 @@ $(zipdir)/jb-04.zip: \
 		build/bin/indep-32/jbio.dll \
 		dist/jb/config.bat \
 		dist/jb/gamestart-03.bat \
+		dist/jb/jbhook-02.conf \
 		| $(zipdir)/
 	$(V)echo ... $@
 	$(V)zip -j $@ $^

@@ -20,9 +20,11 @@ libs_jbhook2       := \
     p4ioemu \
     hook \
     hooklib \
+    cconfig \
     security \
     util \
 
 src_jbhook2        := \
+    config-io.c \
     dllmain.c \
     options.c
