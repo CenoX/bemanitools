@@ -17,10 +17,12 @@ libs_jbhook3       := \
     p4ioemu \
     hook \
     hooklib \
+    cconfig \
     security \
     util \
 
 src_jbhook3        := \
+    config-io.c \
     dllmain.c \
 	gfx.c \
     options.c
