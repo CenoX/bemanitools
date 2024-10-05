@@ -189,7 +189,8 @@ void adapter_hook_use_specific_adapter(const char *adapter_uuid)
     }
 
     memset(specific_adapter_uuid, 0, sizeof(specific_adapter_uuid));
-    memcpy(specific_adapter_uuid, adapter_uuid, sizeof(adapter_uuid));
+    memcpy(
+        specific_adapter_uuid, adapter_uuid, strlen(specific_adapter_uuid) + 1);
 
     use_specific_adapter_uuid = true;
 }
