@@ -15,4 +15,11 @@ void adapter_hook_init(void);
  */
 void adapter_hook_override(const char *adapter_address);
 
+/**
+ * Set the address to WAN IP.
+ * If override is already applied,
+ * this setting may be ignored.
+ *
+ */
+void adapter_hook_wan_override();
 #endif

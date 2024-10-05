@@ -20,8 +20,8 @@
 
 #include "imports/avs.h"
 
-#include "jbhook3/gfx.h"
 #include "jbhook3/config-io.h"
+#include "jbhook3/gfx.h"
 
 #include "jbhook-util/acio.h"
 #include "jbhook-util/eamuse.h"
@@ -36,10 +36,10 @@
 #include "util/log.h"
 #include "util/thread.h"
 
-#define JBHOOK3_INFO_HEADER   \
+#define JBHOOK3_INFO_HEADER     \
     "jbhook3 for saucer and up" \
     ", build " __DATE__ " " __TIME__ ", gitrev " STRINGIFY(GITREV) "\n"
-#define JBHOOK3_CMD_USAGE                                          \
+#define JBHOOK3_CMD_USAGE                 \
     "Usage: launcher.exe -K jbhook3.dll " \
     "<jubeat.dll> [options...]"
 
@@ -88,7 +88,6 @@ static bool my_dll_entry_init(char *sidcode, struct property_node *param)
 
     iohook_push_handler(p4ioemu_dispatch_irp);
     iohook_push_handler(jbhook_util_ac_io_port_dispatch_irp);
-
 
     jbhook3_gfx_init();
 
@@ -194,6 +193,8 @@ BOOL WINAPI DllMain(HMODULE mod, DWORD reason, void *ctx)
     jbhook_util_eamuse_hook_init();
 
     // TODO: MAYBE WE SHOULD ADD EXTERNEL & OVERRIDE IP FROM HERE?
-
+    // if (jbhook3_config_io.use_external_ip) {
+    adapter_hook_wan_override();
+    // }
     return TRUE;
 }
