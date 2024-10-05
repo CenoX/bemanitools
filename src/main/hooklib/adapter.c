@@ -132,10 +132,9 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
     specific_adapter_info = adapter_info;
     if (use_specific_adapter_uuid) {
         while (specific_adapter_info) {
-            if (!memcmp(
+            if (strstr(
                     specific_adapter_info->AdapterName,
-                    specific_adapter_uuid,
-                    sizeof(specific_adapter_uuid))) {
+                    specific_adapter_uuid)) {
                 log_info(
                     "%s: using [specific] adapter: %s, %s, %s, %s",
                     __FUNCTION__,
@@ -298,7 +297,7 @@ void adapter_hook_wan_override()
     WSACleanup();
 
     if (strlen(body_start) > 16) {
-        log_warning("your ip is ipv6 %llu", strlen(body_start));
+        log_warning("your ip is ipv6 %lu", strlen(body_start));
         return;
     }
 
