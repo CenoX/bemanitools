@@ -193,8 +193,11 @@ BOOL WINAPI DllMain(HMODULE mod, DWORD reason, void *ctx)
     jbhook_util_eamuse_hook_init();
 
     // TODO: MAYBE WE SHOULD ADD EXTERNEL & OVERRIDE IP FROM HERE?
-    // if (jbhook3_config_io.use_external_ip) {
-    adapter_hook_wan_override();
-    // }
+    adapter_hook_override(jbhook3_config_io.override_ip);
+    adapter_hook_use_specific_adapter(
+        jbhook3_config_io.use_specific_adapter_uuid);
+    if (jbhook3_config_io.use_external_ip) {
+        adapter_hook_wan_override();
+    }
     return TRUE;
 }

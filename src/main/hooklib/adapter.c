@@ -24,6 +24,8 @@ static IP_ADDRESS_STRING override_address;
 static bool use_address_override;
 static IP_ADDRESS_STRING override_wan_address;
 static bool use_wan_address_override;
+static char specific_adapter_uuid[MAX_ADAPTER_NAME_LENGTH + 4];
+static bool use_specific_adapter_uuid;
 
 static const struct hook_symbol adapter_hook_syms[] = {
     {.name = "GetAdaptersInfo",
@@ -40,6 +42,7 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
     DWORD best_adapter;
     PIP_ADAPTER_INFO info;
     PIP_ADAPTER_INFO wan_info;
+    PIP_ADAPTER_INFO specific_adapter_info;
 
     ret = real_GetAdaptersInfo(adapter_info, out_buf_len);
 
@@ -82,7 +85,6 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
             wan_info = wan_info->Next;
         }
     }
-
     info = adapter_info;
     if (use_address_override) {
         while (info) {
@@ -127,8 +129,30 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
     best_adapter = ip_fwd_table->table[0].dwForwardIfIndex;
     free(ip_fwd_table);
 
-    info = adapter_info;
+    specific_adapter_info = adapter_info;
+    if (use_specific_adapter_uuid) {
+        while (specific_adapter_info) {
+            if (!memcmp(
+                    specific_adapter_info->AdapterName,
+                    specific_adapter_uuid,
+                    sizeof(specific_adapter_uuid))) {
+                log_info(
+                    "%s: using [specific] adapter: %s, %s, %s, %s",
+                    __FUNCTION__,
+                    specific_adapter_info->AdapterName,
+                    specific_adapter_info->Description,
+                    specific_adapter_info->IpAddressList.IpAddress.String,
+                    specific_adapter_info->IpAddressList.IpMask.String);
 
+                // copy only this adapter over
+                memcpy(adapter_info, specific_adapter_info, sizeof(*info));
+                adapter_info->Next = 0;
+                return ret;
+            }
+            specific_adapter_info = specific_adapter_info->Next;
+        }
+    }
+    info = adapter_info;
     while (info) {
         if (info->Index == best_adapter) {
             log_info(
@@ -154,6 +178,44 @@ void adapter_hook_init(void)
 {
     hook_table_apply(
         NULL, "iphlpapi.dll", adapter_hook_syms, lengthof(adapter_hook_syms));
+}
+
+void adapter_hook_use_specific_adapter(const char *adapter_uuid)
+{
+    use_specific_adapter_uuid = false;
+
+    if (adapter_uuid == NULL || *adapter_uuid == '\0') {
+        // empty, do nothing
+        return;
+    }
+
+    memset(specific_adapter_uuid, 0, sizeof(specific_adapter_uuid));
+    memcpy(specific_adapter_uuid, adapter_uuid, sizeof(adapter_uuid));
+
+    use_specific_adapter_uuid = true;
+}
+
+void adapter_hook_override(const char *adapter_address)
+{
+    // starts off false anyways due to static
+    // but in case it gets called multiple times, set it anyways
+    use_address_override = false;
+
+    if (adapter_address == NULL || *adapter_address == '\0') {
+        // empty, do nothing
+        return;
+    }
+
+    if (strlen(adapter_address) > sizeof(IP_ADDRESS_STRING)) {
+        log_warning(
+            "%s: %s is not an ipv4 address", __FUNCTION__, adapter_address);
+        return;
+    }
+
+    memset(override_address.String, 0, sizeof(IP_ADDRESS_STRING));
+    memcpy(override_address.String, adapter_address, sizeof(IP_ADDRESS_STRING));
+
+    use_address_override = true;
 }
 
 #define HTML_BODY_SIZE 512
@@ -247,26 +309,3 @@ void adapter_hook_wan_override()
 }
 
 #undef HTML_BODY_SIZE
-
-void adapter_hook_override(const char *adapter_address)
-{
-    // starts off false anyways due to static
-    // but in case it gets called multiple times, set it anyways
-    use_address_override = false;
-
-    if (adapter_address == NULL || *adapter_address == '\0') {
-        // empty, do nothing
-        return;
-    }
-
-    if (strlen(adapter_address) > sizeof(IP_ADDRESS_STRING)) {
-        log_warning(
-            "%s: %s is not an ipv4 address", __FUNCTION__, adapter_address);
-        return;
-    }
-
-    memset(override_address.String, 0, sizeof(IP_ADDRESS_STRING));
-    memcpy(override_address.String, adapter_address, sizeof(IP_ADDRESS_STRING));
-
-    use_address_override = true;
-}
