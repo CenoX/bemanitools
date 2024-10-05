@@ -152,4 +152,67 @@ void jbhook2_config_io_get(
             JBHOOK2_CONFIG_IO_DISABLE_ADAPTEREMU_KEY,
             JBHOOK2_CONFIG_IO_DEFAULT_DISABLE_ADAPTEREMU_VALUE);
     }
+
+    if (!cconfig_util_get_bool(
+            config,
+            JBHOOK2_CONFIG_IO_SHOW_CURSOR_KEY,
+            &config_io->show_cursor,
+            JBHOOK2_CONFIG_IO_DEFAULT_SHOW_CURSOR_VALUE)) {
+        log_warning(
+            "Invalid value for key '%s' specified, fallback "
+            "to default '%d'",
+            JBHOOK2_CONFIG_IO_SHOW_CURSOR_KEY,
+            JBHOOK2_CONFIG_IO_DEFAULT_SHOW_CURSOR_VALUE);
+    }
+
+    if (!cconfig_util_get_bool(
+            config,
+            JBHOOK2_CONFIG_IO_USE_EXTERNAL_IP_KEY,
+            &config_io->use_external_ip,
+            JBHOOK2_CONFIG_IO_DEFAULT_USE_EXTERNAL_IP_VALUE)) {
+        log_warning(
+            "Invalid value for key '%s' specified, fallback "
+            "to default '%d'",
+            JBHOOK2_CONFIG_IO_USE_EXTERNAL_IP_KEY,
+            JBHOOK2_CONFIG_IO_DEFAULT_USE_EXTERNAL_IP_VALUE);
+    }
+
+    if (!cconfig_util_get_bool(
+            config,
+            JBHOOK2_CONFIG_IO_USE_OVERRIDE_IP_KEY,
+            &config_io->use_override_ip,
+            JBHOOK2_CONFIG_IO_DEFAULT_USE_OVERRIDE_IP_VALUE)) {
+        log_warning(
+            "Invalid value for key '%s' specified, fallback "
+            "to default '%d'",
+            JBHOOK2_CONFIG_IO_USE_OVERRIDE_IP_KEY,
+            JBHOOK2_CONFIG_IO_DEFAULT_USE_OVERRIDE_IP_VALUE);
+    }
+
+    if (!cconfig_util_get_str(
+            config,
+            JBHOOK2_CONFIG_IO_USE_SPECIFIC_ADAPTER_UUID_KEY,
+            config_io->use_specific_adapter_uuid,
+            sizeof(config_io->use_specific_adapter_uuid),
+            JBHOOK2_CONFIG_IO_DEFAULT_USE_SPECIFIC_ADAPTER_UUID_VALUE)) {
+        log_warning(
+            "Invalid value for key '%s' specified, fallback "
+            "to default '%s'",
+            JBHOOK2_CONFIG_IO_USE_SPECIFIC_ADAPTER_UUID_KEY,
+            JBHOOK2_CONFIG_IO_DEFAULT_USE_SPECIFIC_ADAPTER_UUID_VALUE);
+    }
+
+    if (!cconfig_util_get_str(
+            config,
+            JBHOOK2_CONFIG_IO_OVERRIDE_IP_KEY,
+            config_io->override_ip,
+            sizeof(config_io->override_ip),
+            JBHOOK2_CONFIG_IO_DEFAULT_OVERRIDE_IP_VALUE)) {
+        log_warning(
+            "Invalid value for key '%s' specified, fallback "
+            "to default '%s'",
+            JBHOOK2_CONFIG_IO_OVERRIDE_IP_KEY,
+            JBHOOK2_CONFIG_IO_DEFAULT_OVERRIDE_IP_VALUE);
+    }
+    
 }

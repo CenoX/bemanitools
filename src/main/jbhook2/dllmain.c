@@ -74,15 +74,8 @@ static bool load_configs()
 
 static bool my_dll_entry_init(char *sidcode, struct property_node *param)
 {
-    bool eam_io_ok;
-    bool jb_io_ok;
-
-    eam_io_ok = false;
-    jb_io_ok = false;
-
-    log_info("--- Begin jbhook dll_entry_init ---");
-
-    log_assert(sidcode != NULL);
+    log_info(JBHOOK2_INFO_HEADER);
+    log_info("Initializing jbhook...");
 
     // reload configs again so they get logged through avs as well
     // (so we get a copy of them in the -Y logfile)
@@ -93,6 +86,17 @@ static bool my_dll_entry_init(char *sidcode, struct property_node *param)
     if (options.vertical) {
         jbhook_util_gfx_install_vertical_hooks();
     }
+    
+    bool eam_io_ok;
+    bool jb_io_ok;
+
+    eam_io_ok = false;
+    jb_io_ok = false;
+
+    log_info("--- Begin jbhook dll_entry_init ---");
+
+    log_assert(sidcode != NULL);
+
 
     if (!options.disable_p3ioemu) {
         iohook_push_handler(p3io_emu_dispatch_irp);
@@ -186,6 +190,13 @@ fail:
 
 static bool my_dll_entry_main(void)
 {
+
+    // reload configs again so they get logged through avs as well
+    // (so we get a copy of them in the -Y logfile)
+    if (!load_configs()) {
+        exit(EXIT_FAILURE);
+    }
+
     bool result;
 
     result = app_hook_invoke_main();
