@@ -1,18 +1,21 @@
+#include "hook/table.h"
 #include <iphlpapi.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 #include <wincrypt.h> /* Required by mingw for some reason */
 #include <windows.h>
 #include <winsock2.h>
-
-#include <stdbool.h>
-#include <string.h>
-
-#include "hook/table.h"
 
 #include "hooklib/adapter.h"
 
 #include "util/codepage.h"
 #include "util/defs.h"
 #include "util/log.h"
+
+#ifndef BIT_CLEAR
+#define BIT_CLEAR(p, n) ((p) &= ~((1) << (n)))
+#endif
 
 static DWORD WINAPI
 my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len);
@@ -32,7 +35,15 @@ static const struct hook_symbol adapter_hook_syms[] = {
      .patch = my_GetAdaptersInfo,
      .link = (void *) &real_GetAdaptersInfo},
 };
-
+static int countBits(u_long n)
+{
+    int count = 0;
+    while (n) {
+        count += n & 1;
+        n >>= 1;
+    }
+    return count;
+}
 static DWORD WINAPI
 my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
 {
@@ -49,17 +60,56 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
     }
     dhcp_info = adapter_info;
     while (dhcp_info) {
-        log_info(
-            "%s: show adapter: %s, %s, %s, %s, %d, "
-            "%s, %s",
-            __FUNCTION__,
-            dhcp_info->AdapterName,
-            dhcp_info->Description,
-            dhcp_info->IpAddressList.IpAddress.String,
-            dhcp_info->IpAddressList.IpMask.String,
-            dhcp_info->DhcpEnabled,
-            dhcp_info->DhcpServer.IpAddress.String,
-            dhcp_info->GatewayList.IpAddress.String);
+        if (!dhcp_info->DhcpEnabled) {
+            char gateway_addr[sizeof(IP_ADDRESS_STRING)] = {
+                0,
+            };
+            IN_ADDR addr;
+            addr.S_un.S_addr =
+                inet_addr(dhcp_info->IpAddressList.IpAddress.String);
+            if (!(addr.S_un.S_addr == INADDR_NONE ||
+                  addr.S_un.S_addr == INADDR_ANY)) {
+                u_long mask = inet_addr(dhcp_info->IpAddressList.IpMask.String);
+                const int mask_range = (32 - countBits(mask));
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+                addr.S_un.S_addr >>= mask_range;
+                addr.S_un.S_addr <<= mask_range;
+#else
+                addr.S_un.S_addr <<= mask_range;
+                addr.S_un.S_addr >>= mask_range;
+#endif
+                addr.S_un.S_un_b.s_b4 = 1;
+                sprintf(
+                    gateway_addr,
+                    "%u.%u.%u.%u",
+                    addr.S_un.S_un_b.s_b1,
+                    addr.S_un.S_un_b.s_b2,
+                    addr.S_un.S_un_b.s_b3,
+                    addr.S_un.S_un_b.s_b4);
+                log_info(
+                    "gateway update : %s[%s], %s",
+                    wan_info->AdapterName,
+                    wan_info->Description,
+                    gateway_addr);
+                memset(
+                    dhcp_info->DhcpServer.IpAddress.String,
+                    0,
+                    sizeof(IP_ADDRESS_STRING));
+                strncpy(
+                    dhcp_info->DhcpServer.IpAddress.String,
+                    gateway_addr,
+                    sizeof(IP_ADDRESS_STRING));
+                memset(
+                    dhcp_info->GatewayList.IpAddress.String,
+                    0,
+                    sizeof(IP_ADDRESS_STRING));
+                strncpy(
+                    dhcp_info->GatewayList.IpAddress.String,
+                    gateway_addr,
+                    sizeof(IP_ADDRESS_STRING));
+                dhcp_info->DhcpEnabled = 1;
+            }
+        }
         dhcp_info = dhcp_info->Next;
     }
     wan_info = adapter_info;
@@ -87,16 +137,12 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
                     override_wan_address.String,
                     sizeof(IP_ADDRESS_STRING));
                 log_info(
-                    "%s: update [wan override] adapter: %s, %s, %s, %s, %d, "
-                    "%s, %s",
+                    "%s: update [wan override] adapter: %s, %s, %s, %s",
                     __FUNCTION__,
                     wan_info->AdapterName,
                     wan_info->Description,
                     wan_info->IpAddressList.IpAddress.String,
-                    wan_info->IpAddressList.IpMask.String,
-                    wan_info->DhcpEnabled,
-                    wan_info->DhcpServer.IpAddress.String,
-                    wan_info->GatewayList.IpAddress.String);
+                    wan_info->IpAddressList.IpMask.String);
             }
             wan_info = wan_info->Next;
         }
@@ -148,17 +194,18 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
     specific_adapter_info = adapter_info;
     if (use_specific_adapter_uuid) {
         while (specific_adapter_info) {
-            if (strncmp(
+            if (strstr(
                     specific_adapter_info->AdapterName,
-                    specific_adapter_uuid,
-                    strlen(specific_adapter_uuid))) {
+                    specific_adapter_uuid)) {
                 log_info(
-                    "%s: using [specific] adapter: %s, %s, %s, %s",
+                    "%s: using [specific] adapter: %s, %s, %s, %s, %s, %s",
                     __FUNCTION__,
                     specific_adapter_info->AdapterName,
                     specific_adapter_info->Description,
                     specific_adapter_info->IpAddressList.IpAddress.String,
-                    specific_adapter_info->IpAddressList.IpMask.String);
+                    specific_adapter_info->IpAddressList.IpMask.String,
+                    dhcp_info->DhcpServer.IpAddress.String,
+                    dhcp_info->GatewayList.IpAddress.String);
 
                 // copy only this adapter over
                 memcpy(adapter_info, specific_adapter_info, sizeof(*info));
