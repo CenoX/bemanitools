@@ -13,10 +13,6 @@
 #include "util/defs.h"
 #include "util/log.h"
 
-#ifndef BIT_CLEAR
-#define BIT_CLEAR(p, n) ((p) &= ~((1) << (n)))
-#endif
-
 static DWORD WINAPI
 my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len);
 
@@ -79,6 +75,8 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
                 addr.S_un.S_addr >>= mask_range;
 #endif
                 addr.S_un.S_un_b.s_b4 = 1;
+                char *dhcpAddress = dhcp_info->DhcpServer.IpAddress.String;
+                char *gatewayAddress = dhcp_info->GatewayList.IpAddress.String;
                 sprintf(
                     gateway_addr,
                     "%u.%u.%u.%u",
@@ -86,28 +84,20 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
                     addr.S_un.S_un_b.s_b2,
                     addr.S_un.S_un_b.s_b3,
                     addr.S_un.S_un_b.s_b4);
-                log_info(
-                    "gateway update : %s[%s], %s",
-                    wan_info->AdapterName,
-                    wan_info->Description,
-                    gateway_addr);
-                memset(
-                    dhcp_info->DhcpServer.IpAddress.String,
-                    0,
-                    sizeof(IP_ADDRESS_STRING));
+                memset(dhcpAddress, 0, sizeof(IP_ADDRESS_STRING));
+                strncpy(dhcpAddress, gateway_addr, sizeof(IP_ADDRESS_STRING));
+                memset(gatewayAddress, 0, sizeof(IP_ADDRESS_STRING));
                 strncpy(
-                    dhcp_info->DhcpServer.IpAddress.String,
-                    gateway_addr,
-                    sizeof(IP_ADDRESS_STRING));
-                memset(
-                    dhcp_info->GatewayList.IpAddress.String,
-                    0,
-                    sizeof(IP_ADDRESS_STRING));
-                strncpy(
-                    dhcp_info->GatewayList.IpAddress.String,
-                    gateway_addr,
-                    sizeof(IP_ADDRESS_STRING));
+                    gatewayAddress, gateway_addr, sizeof(IP_ADDRESS_STRING));
                 dhcp_info->DhcpEnabled = 1;
+                log_info(
+                    "%s: update dhcp info at adapter: %s, %s, %u, %s, %s",
+                    __FUNCTION__,
+                    dhcp_info->AdapterName,
+                    dhcp_info->Description,
+                    dhcp_info->DhcpEnabled,
+                    dhcp_info->DhcpServer.IpAddress.String,
+                    dhcp_info->GatewayList.IpAddress.String);
             }
         }
         dhcp_info = dhcp_info->Next;
@@ -198,14 +188,15 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
                     specific_adapter_info->AdapterName,
                     specific_adapter_uuid)) {
                 log_info(
-                    "%s: using [specific] adapter: %s, %s, %s, %s, %s, %s",
+                    "%s: using [specific] adapter: %s, %s, %s, %s, %u, %s, %s",
                     __FUNCTION__,
                     specific_adapter_info->AdapterName,
                     specific_adapter_info->Description,
                     specific_adapter_info->IpAddressList.IpAddress.String,
                     specific_adapter_info->IpAddressList.IpMask.String,
-                    dhcp_info->DhcpServer.IpAddress.String,
-                    dhcp_info->GatewayList.IpAddress.String);
+                    specific_adapter_info->DhcpEnabled,
+                    specific_adapter_info->DhcpServer.IpAddress.String,
+                    specific_adapter_info->GatewayList.IpAddress.String);
 
                 // copy only this adapter over
                 memcpy(adapter_info, specific_adapter_info, sizeof(*info));
@@ -254,8 +245,7 @@ void adapter_hook_use_specific_adapter(const char *adapter_uuid)
     }
 
     memset(specific_adapter_uuid, 0, sizeof(specific_adapter_uuid));
-    memcpy(
-        specific_adapter_uuid, adapter_uuid, strlen(specific_adapter_uuid) + 1);
+    memcpy(specific_adapter_uuid, adapter_uuid, strlen(adapter_uuid) + 1);
 
     use_specific_adapter_uuid = true;
 }
