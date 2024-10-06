@@ -57,10 +57,9 @@ my_GetAdaptersInfo(PIP_ADAPTER_INFO adapter_info, PULONG out_buf_len)
     dhcp_info = adapter_info;
     while (dhcp_info) {
         int byPass = use_specific_adapter_uuid ?
-            strstr(dhcp_info->AdapterName, specific_adapter_uuid);
-        if (!dhcp_info->DhcpEnabled || byPass) :
+            strstr(dhcp_info->AdapterName, specific_adapter_uuid) :
             0;
-        {
+        if (!dhcp_info->DhcpEnabled || byPass) {
             char gateway_addr[sizeof(IP_ADDRESS_STRING)] = {
                 0,
             };
